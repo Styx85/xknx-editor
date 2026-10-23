@@ -487,6 +487,9 @@ class KnxGuiApp:
         # tabs of its section in their order then.
         self._manufacturer_hidden = False
         self._manufacturer_tabs: list[str] = []
+        # The Project Log tab hidden because the open project has no log (see _sync_project_log);
+        # kept in the settings, as the window's visibility is.
+        self._project_log_hidden = bool(load_settings("app").get("project_log_hidden"))
         # The window whose tab stays selected in its section while the Manufacturer tab comes
         # back (imgui selects a tab added to a section), until the frame given.
         self._kept_tab: tuple[str, int] | None = None
@@ -3417,6 +3420,33 @@ class KnxGuiApp:
                         self._tab_order_from = imgui.get_frame_count() + 2
                         self._tab_order_until = imgui.get_frame_count() + 300
 
+    def _sync_project_log(self) -> None:
+        """The Project Log tab only while the open project has entries in its log: they come only
+        from an imported project, the editor writes none. Otherwise it is hidden and left out of
+        the menus, and it comes back once a project with a log is open (unless the user had
+        closed it)."""
+        has_log = self._project_service.has_project_log()
+        if has_log is None:
+            return
+        for window in hello_imgui.get_runner_params().docking_params.dockable_windows:
+            if _dock_window_name(window) != "project_log":
+                continue
+            window.include_in_view_menu = has_log
+            if not has_log and window.is_visible:
+                window.is_visible = False
+                self._set_project_log_hidden(True)
+            elif has_log and self._project_log_hidden:
+                # Not focused when it appears: imgui selects the focused window's tab.
+                window.imgui_window_flags |= imgui.WindowFlags_.no_focus_on_appearing
+                window.is_visible = True
+                self._set_project_log_hidden(False)
+
+    def _set_project_log_hidden(self, hidden: bool) -> None:
+        self._project_log_hidden = hidden
+        data = load_settings("app")
+        data["project_log_hidden"] = hidden
+        save_settings("app", data)
+
     def _keep_selected_tab(self) -> None:
         """Keep the tab that was selected in the Manufacturer tab's section selected while that
         tab comes back."""
@@ -4663,6 +4693,7 @@ class KnxGuiApp:
         self._settle_tab_order()
         self._project_service.take_rechecked_devices()
         self._sync_device_section()
+        self._sync_project_log()
         self._keep_selected_tab()
         self._render_status_bar()
         render_section_menus()

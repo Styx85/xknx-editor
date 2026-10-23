@@ -3270,6 +3270,12 @@ class ProjectService:
         self._revision_cache[cache_key] = (self.revision, state)
         return state
 
+    @io_guarded(lambda: None)
+    def has_project_log(self) -> bool | None:
+        """Whether the open project has entries in its log (only an imported project has, the
+        editor writes none); None while that cannot be read (an import is running)."""
+        return bool(self.get_project_traces())
+
     def get_project_traces(self) -> list[ProjectTrace]:
         """The project log (ProjectInformation/ProjectTraces), in document order.
 
