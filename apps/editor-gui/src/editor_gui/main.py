@@ -6009,6 +6009,13 @@ def _detect_locale() -> str:
 def main() -> None:
     import sys
 
+    from editor_gui import cli
+
+    # --help only tells the arguments; nothing starts.
+    if cli.wants_help(sys.argv):
+        cli.show_help()
+        return
+
     # Before anything can reach the network: the packaged app's OpenSSL points at a trust store
     # that only exists on the build machine, so fall back to the bundled certifi (see certs.py).
     ensure_ca_bundle()
