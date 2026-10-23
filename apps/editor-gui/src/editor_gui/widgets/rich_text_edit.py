@@ -9,6 +9,7 @@ loses the focus, as one change.
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Hashable
 from dataclasses import dataclass
@@ -415,21 +416,21 @@ class RichTextEdit:
                 imgui.set_tooltip(f"{tip} ({keys})")
             face = styled_font(flag == BOLD, flag == ITALIC) or font
             low, high = imgui.get_item_rect_min(), imgui.get_item_rect_max()
-            # Centred by the letter as it is drawn (its advance has room after it), and the
-            # underline exactly below it.
+            # Centred by the letter as it is drawn (its advance has room after it), on whole
+            # pixels as imgui draws text, and the underline exactly below it: a filled row of
+            # whole pixels (a line is drawn through pixel centres, half a pixel off).
             glyph = face.get_font_baked(font_size).find_glyph(ord("a"))
-            x = (low.x + high.x - glyph.x0 - glyph.x1) / 2.0
-            y = (low.y + high.y - imgui.get_text_line_height()) / 2.0
+            x = math.floor((low.x + high.x - glyph.x0 - glyph.x1) / 2.0)
+            y = math.floor((low.y + high.y - imgui.get_text_line_height()) / 2.0)
             color = imgui.get_color_u32(imgui.Col_.text)
             draw = imgui.get_window_draw_list()
             draw.add_text(face, font_size, imgui.ImVec2(x, y), color, "a")
             if flag == UNDERLINE:
-                under = y + font.get_font_baked(font_size).ascent + px(1.5)
-                draw.add_line(
-                    imgui.ImVec2(x + glyph.x0, under),
-                    imgui.ImVec2(x + glyph.x1, under),
+                under = round(y + font.get_font_baked(font_size).ascent + px(1.0))
+                draw.add_rect_filled(
+                    imgui.ImVec2(round(x + glyph.x0), under),
+                    imgui.ImVec2(round(x + glyph.x1), under + max(1, round(px(1.0)))),
                     color,
-                    1.0,
                 )
 
     def _toggle(self, flag: int) -> None:

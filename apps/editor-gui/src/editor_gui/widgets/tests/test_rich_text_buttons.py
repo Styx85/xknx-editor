@@ -1,5 +1,5 @@
 """The formatting buttons of a rich text field: each letter centred on its button as it is drawn,
-the underline exactly below the underlined one."""
+on whole pixels, the underline exactly below the underlined one."""
 
 from __future__ import annotations
 
@@ -29,15 +29,17 @@ class _Recorder:
     def __init__(self, draw: imgui.ImDrawList) -> None:
         self._draw = draw
         self.texts: list[tuple[imgui.ImFont, float, float]] = []
-        self.lines: list[tuple[float, float]] = []
+        self.rects: list[tuple[float, float, float, float]] = []
 
     def add_text(
         self, font: imgui.ImFont, size: float, pos: imgui.ImVec2, *args: Any
     ) -> None:
         self.texts.append((font, size, pos.x))
 
-    def add_line(self, start: imgui.ImVec2, end: imgui.ImVec2, *args: Any) -> None:
-        self.lines.append((start.x, end.x))
+    def add_rect_filled(
+        self, low: imgui.ImVec2, high: imgui.ImVec2, *args: Any
+    ) -> None:
+        self.rects.append((low.x, low.y, high.x, high.y))
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._draw, name)
@@ -78,7 +80,11 @@ def test_letters_centred_and_the_underline_below_its_letter(
     assert len(buttons) == 3
     for (left, right), (font, size, x) in zip(buttons, letters, strict=True):
         glyph = font.get_font_baked(size).find_glyph(ord("a"))
-        assert x + (glyph.x0 + glyph.x1) / 2 == pytest.approx((left + right) / 2)
+        assert x == int(x)
+        assert abs(x + (glyph.x0 + glyph.x1) / 2 - (left + right) / 2) < 1.0
     font, size, x = letters[2]
     glyph = font.get_font_baked(size).find_glyph(ord("a"))
-    assert recorder[0].lines[-1] == pytest.approx((x + glyph.x0, x + glyph.x1))
+    x0, y0, x1, y1 = recorder[0].rects[-1]
+    assert (x0, x1) == (round(x + glyph.x0), round(x + glyph.x1))
+    assert all(v == int(v) for v in (x0, y0, x1, y1))
+    assert y1 - y0 >= 1
