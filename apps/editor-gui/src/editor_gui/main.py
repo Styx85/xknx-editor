@@ -118,6 +118,7 @@ from editor_gui.widgets.dialog import (
     end_dialog,
     floating_window_border,
     focus_when_appearing,
+    follow_screen,
     outlined_tabs,
     tab_page,
 )
@@ -748,6 +749,9 @@ class KnxGuiApp:
         self._form = "wide"
         self._wide_layout: dict[str, Any] = {}
         self._form_since: float | None = None
+        # Panels to bring to the front once the open modal dialog is closed (see
+        # _keep_dialog_open).
+        self._focus_after_dialog: list[str] = []
         # The status bar's parts: whether one no longer fitted, and the room kept at the right.
         self._status_full = False
         self._status_reserved = 0.0
@@ -4737,6 +4741,25 @@ class KnxGuiApp:
         self._render_command_palette()
         self._render_bus_operation_overlay()
         self._render_toasts()
+        self._keep_dialog_open()
+
+    def _keep_dialog_open(self) -> None:
+        """Bringing a panel to the front closes an open modal dialog (imgui focuses the panel): while
+        one is open, the panels asked to come to the front wait until it is closed, e.g. the tabs a
+        switch to another layout shows (see _update_web_layout)."""
+        windows = hello_imgui.get_runner_params().docking_params.dockable_windows
+        # The bindings type it as non-optional, but it is None without a modal dialog.
+        if imgui.internal.get_top_most_popup_modal() is not None:  # pyright: ignore[reportUnnecessaryComparison]
+            for window in windows:
+                if window.focus_window_at_next_frame:
+                    window.focus_window_at_next_frame = False
+                    self._focus_after_dialog.append(_dock_window_name(window))
+            return
+        if self._focus_after_dialog:
+            for window in windows:
+                if _dock_window_name(window) in self._focus_after_dialog:
+                    window.focus_window_at_next_frame = True
+            self._focus_after_dialog = []
 
     def _render_bus_operation_overlay(self) -> None:
         """Non-blocking progress overlay shown while a device is being tested. Determinate bar from the
@@ -5490,6 +5513,7 @@ class KnxGuiApp:
         )
         imgui.set_next_window_size(px_vec2(580.0, 0.0), imgui.Cond_.appearing)
         flags = imgui.WindowFlags_.no_collapse | imgui.WindowFlags_.no_saved_settings
+        flags |= follow_screen(S.WELCOME_TITLE, 580.0)
         # p_open=True gives the window a close (X) button; when clicked it returns open=False.
         with floating_window_border():
             expanded, still_open = imgui.begin(S.WELCOME_TITLE, True, flags)
