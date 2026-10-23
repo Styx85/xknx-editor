@@ -10,7 +10,6 @@ from imgui_bundle import imgui
 
 from editor_gui.plugins.project.strings import S
 from editor_gui.widgets.dpi import px
-from editor_gui.widgets.fonts import bold
 from editor_gui.widgets.rich_text_edit import RichTextEdit
 
 if TYPE_CHECKING:
@@ -59,8 +58,8 @@ class CommentPanel:
         stored: str,
         height: float,
     ) -> None:
-        with bold():
-            imgui.text_unformatted(title)
+        # A label above its field, as in the Device tab.
+        imgui.text_disabled(title)
         self._apply(editor.render((*target, field), stored, height))
 
     def tick(self) -> None:
