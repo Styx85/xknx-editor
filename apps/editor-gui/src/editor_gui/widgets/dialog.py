@@ -69,6 +69,13 @@ def _fit_screen(title: str | None = None, width: float | None = None) -> int:
     return imgui.WindowFlags_.horizontal_scrollbar if wanted >= room.x - 1.0 else 0
 
 
+def _screen_room_width() -> float:
+    """The width a dialog can have on the screen, in unscaled pixels (as :func:`_fit_screen`)."""
+    viewport = imgui.get_main_viewport()
+    room = max(viewport.size.x - 2 * px(_SCREEN_MARGIN), px(160))
+    return room / px(1.0)
+
+
 def _near(a: tuple[float, float], b: tuple[float, float]) -> bool:
     return abs(a[0] - b[0]) <= _MOVED_TOLERANCE and abs(a[1] - b[1]) <= _MOVED_TOLERANCE
 
@@ -124,9 +131,12 @@ def begin_dialog(
     Call :func:`end_dialog` when this returns ``True``. It stays centred while its size changes until
     the user moves it. ``width`` (unscaled pixels) fixes the
     width and the height follows the content; with ``height`` as well the dialog starts at that
-    size and can be resized. Without either it fits its content.
+    size and can be resized. Without either it fits its content. On a screen narrower than
+    ``width`` (a phone) the dialog gets the width there is, so its wrapped text reflows.
     """
     _center_next_window(title)
+    if width is not None:
+        width = min(width, _screen_room_width())
     flags |= _fit_screen(title, px(width) if width is not None else None)
     if width is not None and height is not None:
         imgui.set_next_window_size(px_vec2(width, height), imgui.Cond_.appearing)
