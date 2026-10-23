@@ -415,8 +415,10 @@ class RichTextEdit:
                 imgui.set_tooltip(f"{tip} ({keys})")
             face = styled_font(flag == BOLD, flag == ITALIC) or font
             low, high = imgui.get_item_rect_min(), imgui.get_item_rect_max()
-            glyph = face.get_font_baked(font_size).get_char_advance(ord("a"))
-            x = (low.x + high.x - glyph) / 2.0
+            # Centred by the letter as it is drawn (its advance has room after it), and the
+            # underline exactly below it.
+            glyph = face.get_font_baked(font_size).find_glyph(ord("a"))
+            x = (low.x + high.x - glyph.x0 - glyph.x1) / 2.0
             y = (low.y + high.y - imgui.get_text_line_height()) / 2.0
             color = imgui.get_color_u32(imgui.Col_.text)
             draw = imgui.get_window_draw_list()
@@ -424,7 +426,10 @@ class RichTextEdit:
             if flag == UNDERLINE:
                 under = y + font.get_font_baked(font_size).ascent + px(1.5)
                 draw.add_line(
-                    imgui.ImVec2(x, under), imgui.ImVec2(x + glyph, under), color, 1.0
+                    imgui.ImVec2(x + glyph.x0, under),
+                    imgui.ImVec2(x + glyph.x1, under),
+                    color,
+                    1.0,
                 )
 
     def _toggle(self, flag: int) -> None:
