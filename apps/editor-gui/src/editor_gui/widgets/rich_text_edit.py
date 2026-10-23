@@ -128,10 +128,10 @@ class RichTextEdit:
     # --- drawing ---------------------------------------------------------------------------
 
     def render(
-        self, key: Hashable, stored: str, height: float
+        self, key: Hashable, stored: str, height: float, title: str
     ) -> tuple[Hashable, str] | None:
-        """The field for ``stored`` (RTF) of element ``key``, ``height`` high (the formatting
-        buttons below it come on top)."""
+        """The field for ``stored`` (RTF) of element ``key``, ``height`` high, below a row with
+        its ``title`` and, on the right, the formatting buttons (that row comes on top)."""
         commit = None
         if key != self._key:
             commit = self._commit()
@@ -141,6 +141,11 @@ class RichTextEdit:
         self._last_frame = imgui.get_frame_count()
 
         imgui.begin_group()
+        # The buttons belong to the field (the group): a click on them keeps it focused.
+        imgui.align_text_to_frame_padding()
+        imgui.text_disabled(title)
+        imgui.same_line()
+        self._buttons()
         border = self._focused
         if border:
             imgui.push_style_color(
@@ -156,7 +161,6 @@ class RichTextEdit:
         if border:
             imgui.pop_style_var()
             imgui.pop_style_color()
-        self._buttons()
         imgui.end_group()
 
         inside = imgui.is_item_hovered(
@@ -377,7 +381,7 @@ class RichTextEdit:
             ime.viewport_id = imgui.get_window_viewport().id_
 
     def _buttons(self) -> None:
-        """Bold, italic and underline below the field, on its right."""
+        """Bold, italic and underline above the field, on its right."""
         style = imgui.get_style()
         size = imgui.get_frame_height()
         width = size * 1.25
