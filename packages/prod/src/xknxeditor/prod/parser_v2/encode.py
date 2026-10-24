@@ -1674,7 +1674,12 @@ def _encode_properties[K](
     little_endian = _program_little_endian(app)
     text_encoding = _program_text_encoding(app)
     bufs: dict[K, bytearray] = {}
-    for w in writes.prop:
+    # The bits of each property written so far.
+    written: dict[K, set[int]] = {}
+    # A property has no data of its own in the product to keep (as a memory segment has):
+    # an inactive parameter's range (``keep``) is written with its default value, after the
+    # active parameters and only where no other parameter wrote.
+    for w in sorted(writes.prop, key=lambda w: w.keep):
         pt = idx.parameter_types.get(w.parameter_type)
         if pt is None:
             continue
@@ -1682,11 +1687,14 @@ def _encode_properties[K](
         size_in_bit = type_size_in_bit(tc, for_property=True)
         if not size_in_bit:
             continue
-        if w.keep:
-            # A kept range is part of the property value; its bytes stay zero.
-            needed = w.offset + (w.bit_offset + size_in_bit + 7) // 8
-            buf = bufs.setdefault(key_of(w), bytearray())
-            buf.extend(bytearray(max(0, needed - len(buf))))
+        key = key_of(w)
+        needed = w.offset + (w.bit_offset + size_in_bit + 7) // 8
+        buf = bufs.setdefault(key, bytearray())
+        buf.extend(bytearray(max(0, needed - len(buf))))
+        start_bit = w.offset * 8 + w.bit_offset
+        bits = range(start_bit, start_bit + size_in_bit)
+        taken = written.setdefault(key, set())
+        if w.keep and not taken.isdisjoint(bits):
             continue
         encoded = _encode_value(
             w.value,
@@ -1697,17 +1705,14 @@ def _encode_properties[K](
             text_encoding=text_encoding,
         )
         if encoded is None:
+            if w.keep:
+                # A default that does not fit its type leaves the range zero.
+                continue
             raise EncodingError(
                 f"cannot encode parameter {w.param_id} value {w.value!r} "
                 f"as {w.parameter_type}"
             )
-        key = key_of(w)
-        needed = w.offset + (w.bit_offset + size_in_bit + 7) // 8
-        buf = bufs.get(key)
-        if buf is None:
-            bufs[key] = buf = bytearray(needed)
-        elif len(buf) < needed:
-            buf.extend(bytearray(needed - len(buf)))
+        taken.update(bits)
         _write_bits(buf, w.offset, w.bit_offset, size_in_bit, encoded)
     return {key: bytes(buf) for key, buf in bufs.items()}
 
