@@ -137,6 +137,10 @@ logger = logging.getLogger(__name__)
 # Default cooldown (seconds) to wait after a Restart before reconnecting.
 DEFAULT_RESTART_COOLDOWN = 3.0
 
+# Cooldown (seconds) after a Master Reset the device did not confirm: a device has to report its
+# Process Time only when it needs longer than this (KNX 3/5/2 section 3.7.1.2.2).
+UNCONFIRMED_MASTER_RESET_COOLDOWN = 5.0
+
 # Memory Control Block table property and its per-segment entry layout (KNX
 # Standard v3.0.0, Chapter 3/5/1 "Resources", section 4.2.27 "PID_MCB_TABLE"):
 # an 8 octet entry per segment, CRC-protected when bit 0 of octet 4 is clear, with
@@ -1169,7 +1173,10 @@ class LoadProcedureRunner:
             await self._close()
             self._restart_at = time.monotonic()
             # Process Time is a 2 octet unsigned value in *seconds* (DPT 7.005,
-            # KNX 3/5/2 3.7.1.2.2), so use it directly - not milliseconds.
+            # KNX 3/5/2 3.7.1.2.2), so use it directly - not milliseconds. A device
+            # that restarted without confirming the reset reported none.
+            if process_time is None:
+                process_time = UNCONFIRMED_MASTER_RESET_COOLDOWN
             self._pending_cooldown = max(self._restart_cooldown, process_time)
             return
         if isinstance(control, LdCtrlUnload):
