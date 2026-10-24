@@ -1792,6 +1792,30 @@ async def test_rename_group_ranges_functions_and_device_descriptions(
         ]
         assert [(r["id"], r["name"]) for r in dimm] == [(middle, "Dimmwert Status")]
 
+        # An unnamed range keeps a fixed item shape; filtering and renaming to "" still work.
+        unnamed = project.create_group_range(main, "")
+        assert unnamed is not None
+        ranges = (await _data(client, "project_list_group_ranges"))["items"]
+        item = next(r for r in ranges if r["id"] == unnamed)
+        assert (item["name"], item["description"]) == ("", "")
+        assert (
+            await _data(client, "project_list_group_ranges", name_contains="licht")
+        )["count"] == 1
+        cleared = await _data(
+            client, "project_rename_group_range", group_range_id=middle, name=""
+        )
+        assert cleared["name"] == ""
+        await _data(client, "project_undo")
+
+        # Names are stripped like in the GUI.
+        padded = await _data(
+            client,
+            "project_rename_group_range",
+            group_range_id=main,
+            name="  Licht EG ",
+        )
+        assert padded["name"] == "Licht EG"
+
         # Functions: the id comes from project_spaces.
         room = (
             await _data(
@@ -1804,7 +1828,7 @@ async def test_rename_group_ranges_functions_and_device_descriptions(
             client,
             "project_rename_function",
             function_id=function,
-            name="Wohnen Deckenlicht",
+            name=" Wohnen Deckenlicht ",
         )
         assert result == {"function_id": function, "name": "Wohnen Deckenlicht"}
 

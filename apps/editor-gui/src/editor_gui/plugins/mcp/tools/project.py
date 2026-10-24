@@ -2201,16 +2201,14 @@ def register(mcp: FastMCP, ctx: McpContext) -> None:
         def _walk(nodes: list[Any], parent_id: int | None, depth: int) -> None:
             for r in nodes:
                 out.append(
-                    _prune(
-                        {
-                            "id": r.id,
-                            "address": r.address,
-                            "name": r.name,
-                            "description": r.description,
-                            "parent_id": parent_id,
-                            "depth": depth,
-                        }
-                    )
+                    {
+                        "id": r.id,
+                        "address": r.address or "",
+                        "name": r.name or "",
+                        "description": r.description or "",
+                        "parent_id": parent_id,
+                        "depth": depth,
+                    }
                 )
                 _walk(r.children, r.id, depth + 1)
 
@@ -2221,7 +2219,8 @@ def register(mcp: FastMCP, ctx: McpContext) -> None:
     def project_list_group_ranges(name_contains: str | None = None) -> dict[str, Any]:
         """List the group-address folders (main and middle groups), optionally filtering names by
         a case-insensitive substring. Returns {items, count}; each item has {id, address, name,
-        description, parent_id, depth} (depth 0 = main group). Pass ``id`` as group_range_id to
+        description, parent_id, depth} (depth 0 = main group; name and description are "" when
+        unset, parent_id is null for main groups). Pass ``id`` as group_range_id to
         project_rename_group_range."""
 
         def _read() -> list[dict[str, Any]]:
@@ -2242,11 +2241,11 @@ def register(mcp: FastMCP, ctx: McpContext) -> None:
         def _rename() -> dict[str, Any]:
             if not any(r["id"] == group_range_id for r in _group_ranges()):
                 raise ToolError(f"no group range with id {group_range_id}")
-            project.rename_group_range(group_range_id, name)
+            project.rename_group_range(group_range_id, name.strip())
             found = next(r for r in _group_ranges() if r["id"] == group_range_id)
             return {
                 "id": found["id"],
-                "address": found.get("address", ""),
+                "address": found["address"],
                 "name": found["name"],
             }
 
@@ -2272,8 +2271,8 @@ def register(mcp: FastMCP, ctx: McpContext) -> None:
         def _rename() -> dict[str, Any]:
             if function_id not in _function_ids():
                 raise ToolError(f"no function with id {function_id}")
-            project.rename_function(function_id, name)
-            return {"function_id": function_id, "name": name}
+            project.rename_function(function_id, name.strip())
+            return {"function_id": function_id, "name": name.strip()}
 
         return ctx.run_locked(_rename)
 

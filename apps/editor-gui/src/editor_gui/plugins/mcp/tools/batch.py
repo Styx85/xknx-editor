@@ -236,14 +236,14 @@ def register(mcp: FastMCP, ctx: McpContext) -> None:
         "rename_group_range": (
             ("group_range_id", "name"),
             lambda p: (
-                project.rename_group_range(int(p["group_range_id"]), p["name"]),
+                project.rename_group_range(int(p["group_range_id"]), p["name"].strip()),
                 {"group_range_id": int(p["group_range_id"])},
             )[1],
         ),
         "rename_function": (
             ("function_id", "name"),
             lambda p: (
-                project.rename_function(int(p["function_id"]), p["name"]),
+                project.rename_function(int(p["function_id"]), p["name"].strip()),
                 {"function_id": int(p["function_id"])},
             )[1],
         ),
